@@ -1,3 +1,5 @@
+// https://adventofcode.com/2023/day/3
+
 type Part =
     { Row: int
       Col1: int
