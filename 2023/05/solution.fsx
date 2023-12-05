@@ -1,4 +1,4 @@
-// https://adventofcode.com/2023/day/4
+// https://adventofcode.com/2023/day/5
 
 type Almanac =
     { SeedToSoil: list<int64 * int64 * int64>
