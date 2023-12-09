@@ -1,7 +1,7 @@
 // https://adventofcode.com/2023/day/9
 
 let all elt list =
-    list |> List.exists (fun e -> e <> elt) |> not
+    List.forall ((=) elt) list
 
 let diff seq =
     seq |> List.pairwise |> List.map (fun (a, b) -> b - a)
@@ -10,18 +10,18 @@ let rec diffUntil f seq =
     if f seq then [ seq ] else seq :: diffUntil f (diff seq)
 
 let getLast seqs =
-    let folder sum seq = sum + List.head (List.rev seq)
-    seqs |> List.rev |> List.fold folder 0
+    let folder sum seq = sum + List.last seq
+    seqs |> List.fold folder 0
 
 let part1 seqs =
-    seqs |> List.map (diffUntil (all 0)) |> List.map getLast |> List.sum
+    seqs |> List.map (diffUntil (all 0)) |> List.sumBy getLast
 
 let getFirst seqs =
     let folder sum seq = List.head seq - sum
     seqs |> List.rev |> List.fold folder 0
 
 let part2 seqs =
-    seqs |> List.map (diffUntil (all 0)) |> List.map getFirst |> List.sum
+    seqs |> List.map (diffUntil (all 0)) |> List.sumBy getFirst
 
 let parseSequence (str: string) =
     str.Split [| ' ' |] |> Array.map int |> Array.toList
