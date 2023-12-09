@@ -1,42 +1,36 @@
 // https://adventofcode.com/2023/day/9
 
-let all elt list =
-    List.forall ((=) elt) list
+let all elt list = Array.forall ((=) elt) list
 
 let diff seq =
-    seq |> List.pairwise |> List.map (fun (a, b) -> b - a)
+    seq |> Array.pairwise |> Array.map (fun (a, b) -> b - a)
 
 let rec diffUntil f seq =
     if f seq then [ seq ] else seq :: diffUntil f (diff seq)
 
 let getLast seqs =
-    let folder sum seq = sum + List.last seq
+    let folder sum seq = sum + Array.last seq
     seqs |> List.fold folder 0
 
 let part1 seqs =
-    seqs |> List.map (diffUntil (all 0)) |> List.sumBy getLast
+    seqs |> Array.map (diffUntil (all 0)) |> Array.sumBy getLast
 
 let getFirst seqs =
-    let folder sum seq = List.head seq - sum
-    seqs |> List.rev |> List.fold folder 0
+    let folder seq sum = Array.head seq - sum
+    List.foldBack folder seqs 0
 
 let part2 seqs =
-    seqs |> List.map (diffUntil (all 0)) |> List.sumBy getFirst
+    seqs |> Array.map (diffUntil (all 0)) |> Array.sumBy getFirst
 
-let parseSequence (str: string) =
-    str.Split [| ' ' |] |> Array.map int |> Array.toList
+let parseSeq (str: string) = str.Split [| ' ' |] |> Array.map int
 
 let main filename =
-    let sequences =
-        filename
-        |> System.IO.File.ReadAllLines
-        |> Array.map parseSequence
-        |> Array.toList
+    let seqs = filename |> System.IO.File.ReadAllLines |> Array.map parseSeq
 
-    let solution1 = part1 sequences
+    let solution1 = part1 seqs
     printfn $"Solution 1: {solution1}"
 
-    let solution2 = part2 sequences
+    let solution2 = part2 seqs
     printfn $"Solution 2: {solution2}"
 
 main "test.txt"
