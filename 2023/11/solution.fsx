@@ -38,13 +38,20 @@ let galaxies space =
 
     List.collect hashCoord [ 0..rows ]
 
-let rec distances (input: (int64 * int64) list) =
-    let diff (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)
-    let helper origin rest = List.map (diff origin) rest
-
-    match input with
-    | origin :: rest -> (helper origin rest) @ distances rest
+let rec tails list =
+    match list with
     | [] -> []
+    | elts -> elts :: tails (List.tail elts)
+
+let distance (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2)
+
+let rec distances (input: (int64 * int64) list) =
+    let helper list =
+        match list with
+        | origin :: rest -> List.map (distance origin) rest
+        | [] -> []
+
+    input |> tails |> List.collect helper
 
 let distSum factor space =
     let rows = emptyRows space
