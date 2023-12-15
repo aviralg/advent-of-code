@@ -6,26 +6,35 @@ type Operation =
 
 type Lens = string * int
 
+type Boxes = Map of int * Lens
+
+let get boxes id =
+    Map.tryFind id boxes |> Option.defaultValue []
+
+let set boxes id value = Map.add id value boxes
+
+let update boxes id f = get boxes id |> f |> set boxes id
+
 let computeHash str =
     let helper cur chr = (17 * (cur + int chr)) % 256
     Seq.fold helper 0 str
 
-let rec remove lenses label =
+let rec remove label lenses =
     match lenses with
     | (label2, _) :: rest when label2 = label -> rest
-    | head :: rest -> head :: (remove rest label)
+    | head :: rest -> head :: (remove label rest)
     | [] -> []
 
-let rec replace lenses label focus =
+let rec replace label focus lenses =
     match lenses with
     | (label2, _) :: rest when label2 = label -> (label, focus) :: rest
-    | head :: rest -> head :: (replace rest label focus)
+    | head :: rest -> head :: (replace label focus rest)
     | [] -> [ (label, focus) ]
 
-let applyOp (boxes: Lens list array) op =
+let applyOp boxes op =
     match op with
-    | Remove(boxid, label) -> boxes[boxid] <- remove boxes[boxid] label
-    | ReplaceOrAdd(boxid, label, focus) -> boxes[boxid] <- replace boxes[boxid] label focus
+    | Remove(boxid, label) -> update boxes boxid (remove label)
+    | ReplaceOrAdd(boxid, label, focus) -> update boxes boxid (replace label focus)
 
 let parseOp (seq: string) =
     if seq.EndsWith "-" then
@@ -44,11 +53,12 @@ let part1 seqs =
     seqs |> Array.map computeHash |> Array.sum
 
 let part2 seqs =
-    let boxes = Array.create 256 []
-
-    Array.iter (parseOp >> applyOp boxes) seqs
-
-    boxes |> Array.mapi focusingPower |> Array.sum
+    seqs
+    |> Array.map parseOp
+    |> Array.fold applyOp Map.empty
+    |> Map.map focusingPower
+    |> Map.values
+    |> Seq.sum
 
 let parseSeqs (str: string) =
     str.Trim().Split [| ','; '\n' |] |> Array.map (fun s -> s.Trim())
