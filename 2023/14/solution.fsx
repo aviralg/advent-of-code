@@ -1,135 +1,105 @@
 // https://adventofcode.com/2023/day/14
 
-type Platform = char array array
+type Orientation =
+    | North
+    | West
+    | South
+    | East
 
-let dims (platform: Platform) = (platform.Length, platform[0].Length)
+type Platform =
+    { Content: string
+      Rows: int
+      Cols: int }
 
-let dec1 x = x - 1
-let inc1 x = x + 1
+let dims orientation platform =
+    match orientation with
+    | North
+    | South -> (platform.Rows, platform.Cols)
+    | West
+    | East -> (platform.Cols, platform.Rows)
 
-let toString (platform: Platform) =
-    platform |> Array.map System.String.Concat |> Array.rev |> String.concat "\n"
+let index orientation platform row col =
+    match orientation with
+    | North -> (platform.Rows - 1 - row) * platform.Cols + col
+    | West -> (platform.Rows - 1 - col) * platform.Cols + (platform.Cols - 1 - row)
+    | South -> row * platform.Cols + (platform.Cols - 1 - col)
+    | East -> col * platform.Cols + row
 
-let show (platform: Platform) = printfn "%s" (toString platform)
-(*
-    let (rows, cols) = dims platform
-    for i in 0..rows-1 do
-        for j in 0..cols-1 do
-            printf "%c" (platform[rows-1-i][j])
-        printf "\n"
-*)
-let cycle (platform: Platform) =
-    let (rows, cols) = dims platform
+let tilt orientation platform =
+    let buffer = System.Text.StringBuilder(platform.Content)
+    let get r c = buffer[index orientation platform r c]
 
-    let swap (r1, c1) (r2, c2) =
-        let temp = platform[r1][c1]
-        platform[r1][c1] <- platform[r2][c2]
-        platform[r2][c2] <- temp
+    let set r c v =
+        buffer[index orientation platform r c] <- v
 
-    let rec vertical step pos row col =
-        if row >= 0 && row < rows then
-            match platform[row][col] with
-            | '.' -> vertical step (pos @ [ row ]) (step row) col
-            | '#' -> vertical step [] (step row) col
-            | 'O' ->
-                match pos with
-                | [] -> vertical step pos (step row) col
-                | h :: t ->
-                    swap (row, col) (h, col)
-                    vertical step (t @ [ row ]) (step row) col
-            | _ -> failwith "invalid character in platform"
+    let swap r1 c1 r2 c2 =
+        let a, b = get r1 c1, get r2 c2
+        set r1 c1 b
+        set r2 c2 a
 
-    let rec horizontal step pos row col =
-        if col >= 0 && col < cols then
-            match platform[row][col] with
-            | '.' -> horizontal step (pos @ [ col ]) row (step col)
-            | '#' -> horizontal step [] row (step col)
-            | 'O' ->
-                match pos with
-                | [] -> horizontal step pos row (step col)
-                | h :: t ->
-                    swap (row, col) (row, h)
-                    horizontal step (t @ [ col ]) row (step col)
-            | _ -> failwith "invalid character in platform"
-
-    List.iter (vertical dec1 [] (rows - 1)) [ 0 .. cols - 1 ]
-    List.iter (fun row -> horizontal inc1 [] row 0) [ 0 .. rows - 1 ]
-    List.iter (vertical inc1 [] 0) [ 0 .. cols - 1 ]
-    List.iter (fun row -> horizontal dec1 [] row (cols - 1)) [ 0 .. rows - 1 ]
-
-
-let copy (p: Platform) =
-    let (rows, cols) = dims p
-
-    let copyCol row =
-        Array.map (fun col -> p[row][col]) [| 0 .. cols - 1 |]
-
-    Array.map copyCol [| 0 .. rows - 1 |]
-
-let tilt (p: Platform) =
-    let (rows, cols) = dims p
-    let platform = copy p
-
-    let swap (r1, c1) (r2, c2) =
-        let temp = platform[r1][c1]
-        platform[r1][c1] <- platform[r2][c2]
-        platform[r2][c2] <- temp
+    let (rows, cols) = dims orientation platform
 
     let rec helper pos row col =
         if row >= 0 then
-            match platform[row][col] with
+            match get row col with
             | '.' -> helper (pos @ [ row ]) (row - 1) col
             | '#' -> helper [] (row - 1) col
             | 'O' ->
                 match pos with
                 | [] -> helper pos (row - 1) col
                 | h :: t ->
-                    swap (row, col) (h, col)
+                    swap row col h col
                     helper (t @ [ row ]) (row - 1) col
             | _ -> failwith "invalid character in platform"
 
     List.iter (helper [] (rows - 1)) [ 0 .. cols - 1 ]
-    platform
+    { platform with Content = buffer.ToString() }
+
+let cycle platform =
+    platform |> tilt North |> tilt West |> tilt South |> tilt East
+
+let cycleFor limit platform =
+    let rec helper iter history platform =
+        if iter >= limit then
+            platform
+        else
+            let p2 = cycle platform
+            let content = p2.Content
+
+            let iter2 =
+                match List.tryFindIndex ((=) content) history with
+                | None -> iter + 1
+                | Some index ->
+                    let cycle = index + 1
+                    let q, r = System.Math.DivRem(limit - iter, cycle)
+                    iter + q * cycle + 1
+
+            helper iter2 (content :: history) p2
+
+    helper 0 [ platform.Content ] platform
 
 let load platform =
-    let (rows, cols) = dims platform
-    let total n = List.sum [ (cols - n + 1) .. cols ]
+    let (rows, cols) = dims North platform
 
-    let count chr col =
-        [ 0 .. rows - 1 ]
-        |> List.map (fun row -> if platform[row][col] = chr then row + 1 else 0)
-        |> List.sum
+    let get (r, c) =
+        platform.Content[index North platform r c]
 
-    [ 0 .. cols - 1 ] |> List.map (count 'O') |> List.sum
+    List.allPairs [ 0 .. rows - 1 ] [ 0 .. cols - 1 ]
+    |> List.filter (fun loc -> get loc = 'O')
+    |> List.map (fun loc -> fst loc + 1)
+    |> List.sum
 
-let part1 p =
-    let platform = tilt p
-    load p
+let part1 platform = platform |> tilt North |> load
 
-let part2 platform =
-    let v = ResizeArray([ toString platform ])
-    let mutable iter = 1
-    let limit = 1000000000
-
-    while iter <= limit do
-        cycle platform
-        //printfn "load: %A" (load platform)
-        let str = toString platform
-
-        match Seq.tryFindIndex (fun s -> s = str) v with
-        | None -> ()
-        | Some index ->
-            let cycle = v.Count - index
-            let q, r = System.Math.DivRem(limit - iter, cycle)
-            iter <- iter + q * cycle
-        //printfn $"{index}, {cycle}, {q}, {r}"
-        v.Add(str)
-        iter <- iter + 1
-
-    load platform
+let part2 platform = platform |> cycleFor 1000000000 |> load
 
 let parsePlatform (str: string) =
-    str.Trim().Split [| '\n' |] |> Array.rev |> Array.map Seq.toArray
+    let lines = str.Trim().Split [| '\n' |]
+    let content = String.concat "" lines
+
+    { Content = content
+      Rows = lines.Length
+      Cols = lines[0].Length }
 
 let main filename =
     let platform = filename |> System.IO.File.ReadAllText |> parsePlatform
